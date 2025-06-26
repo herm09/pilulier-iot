@@ -1,6 +1,8 @@
 # 💊 Pilulier Connecté – Lumamed
 
-![Lumamed](./asset/logo_lumamed.svg)
+<p align="center">
+  <img src="./assets/logo_lumamed.svg" alt="Pilulier connecté" width="400"/>
+</p>
 
 ## 🧭 Introduction – Contexte & Objectif
 
