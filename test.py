@@ -96,52 +96,32 @@ def choose_day():
             return day_index
         time.sleep(0.1)
 
-def choose_time_slot():
-    """Permet de choisir un créneau prédéfini"""
-    slots = [
-        ("Matin", 8, 0, 0),
-        ("Midi", 12, 0, 0),
-        ("Soir", 20, 0, 0),
-        ("Personnalise", 0, 0, 0)
-    ]
-    
-    slot_index = 0
-    while True:
-        oled.fill(0)
-        oled.text("Creneau:", 0, 10)
-        oled.text(f"> {slots[slot_index][0]}", 0, 30)
-        if slot_index < 3:
-            oled.text(f"{slots[slot_index][1]:02}:{slots[slot_index][2]:02}", 0, 50)
-        oled.show()
-
-        if not btn_up.value():
-            slot_index = (slot_index - 1) % 4
-            wait_release(btn_up)
-        if not btn_down.value():
-            slot_index = (slot_index + 1) % 4
-            wait_release(btn_down)
-        if not btn_validate.value():
-            wait_release(btn_validate)
-            return slots[slot_index]
-        time.sleep(0.1)
-
-def set_custom_time():
+def set_time():
     """Interface pour définir une heure personnalisée"""
-    alert = [0, 0, 0]  # HH, MM, SS
+    alert = [12, 0, 0]  # HH, MM, SS (commence par 12:00:00)
     field_index = 0
     fields = ["Heure", "Minute", "Seconde"]
+    max_values = [23, 59, 59]  # Valeurs maximales pour chaque champ
 
     while field_index < 3:
         oled.fill(0)
-        oled.text(f"{fields[field_index]}:", 0, 10)
-        oled.text(f"{alert[field_index]:02}", 60, 30)
+        oled.text("Config. heure:", 0, 0)
+        oled.text(f"{fields[field_index]}:", 0, 15)
+        oled.text(f"> {alert[field_index]:02d}", 50, 15)
+        
+        # Afficher l'heure complète en cours
+        oled.text(f"{alert[0]:02d}:{alert[1]:02d}:{alert[2]:02d}", 0, 35)
+        
+        # Instructions
+        oled.text("^/v: changer", 0, 50)
+        oled.text("OK: suivant", 70, 50)
         oled.show()
 
         if not btn_up.value():
-            alert[field_index] = (alert[field_index] + 1) % (24 if field_index == 0 else 60)
+            alert[field_index] = (alert[field_index] + 1) % (max_values[field_index] + 1)
             wait_release(btn_up)
         if not btn_down.value():
-            alert[field_index] = (alert[field_index] - 1) % (24 if field_index == 0 else 60)
+            alert[field_index] = (alert[field_index] - 1) % (max_values[field_index] + 1)
             wait_release(btn_down)
         if not btn_validate.value():
             wait_release(btn_validate)
@@ -151,12 +131,14 @@ def set_custom_time():
 
     return tuple(alert)
 
+
+
 # -------------------- EDIT ALERTS --------------------
 def edit_alerts():
     global weekly_alerts
     
     while True:
-        if not choose_yes_no("Programmer alerte?"):
+        if not choose_yes_no("Ajouter alerte?"):
             update_oled("Fin programmation")
             time.sleep(1)
             break
@@ -164,23 +146,28 @@ def edit_alerts():
         # Choisir le jour
         selected_day = choose_day()
         
-        # Choisir le créneau
-        selected_slot = choose_time_slot()
-        
-        if selected_slot[0] == "Personnalise":
-            # Heure personnalisée
-            alert_time = set_custom_time()
-        else:
-            # Créneau prédéfini
-            alert_time = (selected_slot[1], selected_slot[2], selected_slot[3])
+        # Configurer l'heure librement
+        alert_time = set_time()
+
+        # Vérifier si l'alerte existe déjà
+        if alert_time in weekly_alerts[selected_day]:
+            update_oled_multi([
+                "Alerte existe",
+                "deja!"
+            ])
+            time.sleep(2)
+            continue
 
         # Ajouter l'alerte
         weekly_alerts[selected_day].append(alert_time)
         
+        # Trier les alertes par ordre chronologique
+        weekly_alerts[selected_day].sort()
+        
         # Confirmation
         update_oled_multi([
             f"{days_names[selected_day]}",
-            f"{alert_time[0]:02}:{alert_time[1]:02}:{alert_time[2]:02}",
+            f"{alert_time[0]:02d}:{alert_time[1]:02d}:{alert_time[2]:02d}",
             "Alerte ajoutee!"
         ])
         time.sleep(2)
@@ -208,10 +195,41 @@ def delete_alerts():
         time.sleep(1)
         return
     
-    if choose_yes_no("Supprimer toutes?"):
+    # Choix entre supprimer toutes ou une seule alerte
+    if choose_yes_no("Suppr. toutes?"):
         weekly_alerts[selected_day].clear()
-        update_oled("Alertes supprimees")
+        update_oled("Toutes supprimees")
         time.sleep(1)
+    else:
+        # Supprimer une alerte spécifique
+        if len(weekly_alerts[selected_day]) == 1:
+            weekly_alerts[selected_day].clear()
+            update_oled("Alerte supprimee")
+            time.sleep(1)
+        else:
+            alert_index = 0
+            alerts_list = weekly_alerts[selected_day]
+            
+            while True:
+                oled.fill(0)
+                oled.text("Supprimer:", 0, 0)
+                oled.text(f"> {alerts_list[alert_index][0]:02d}:{alerts_list[alert_index][1]:02d}:{alerts_list[alert_index][2]:02d}", 0, 20)
+                oled.text(f"({alert_index + 1}/{len(alerts_list)})", 0, 40)
+                oled.show()
+                
+                if not btn_up.value():
+                    alert_index = (alert_index - 1) % len(alerts_list)
+                    wait_release(btn_up)
+                if not btn_down.value():
+                    alert_index = (alert_index + 1) % len(alerts_list)
+                    wait_release(btn_down)
+                if not btn_validate.value():
+                    wait_release(btn_validate)
+                    weekly_alerts[selected_day].pop(alert_index)
+                    update_oled("Alerte supprimee")
+                    time.sleep(1)
+                    break
+                time.sleep(0.1)
 
 def menu_options():
     """Menu principal pour la gestion des alertes"""
