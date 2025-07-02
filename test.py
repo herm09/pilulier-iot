@@ -34,7 +34,7 @@ oled = ssd1306.SSD1306_I2C(128, 64, i2c)
 
 # Boutons
 btn_up = Pin(15, Pin.IN, Pin.PULL_UP)
-btn_down = Pin(14, Pin.IN, Pin.PULL_UP)  # Corrigé: était 16 (conflit avec moteur)
+btn_down = Pin(16, Pin.IN, Pin.PULL_UP)
 btn_validate = Pin(17, Pin.IN, Pin.PULL_UP)
 
 # -------------------- UTIL --------------------
@@ -58,21 +58,28 @@ def wait_release(pin):
 def choose_yes_no(prompt):
     """Affiche une question et retourne True pour oui, False pour non"""
     choice = 0  # 0=Oui, 1=Non
+    options = ["Oui", "Non"]
+    
     while True:
         oled.fill(0)
         oled.text(prompt, 0, 10)
-        oled.text("> " + ("Oui" if choice == 0 else "Non"), 0, 40)
+        oled.text(f"> {options[choice]}", 0, 30)
+        oled.text("UP/DOWN: choisir", 0, 50)
         oled.show()
 
         if not btn_up.value():
-            choice = 0
+            choice = choice - 1
+            if choice < 0:
+                choice = 1
             wait_release(btn_up)
         if not btn_down.value():
-            choice = 1
+            choice = choice + 1
+            if choice > 1:
+                choice = 0
             wait_release(btn_down)
         if not btn_validate.value():
             wait_release(btn_validate)
-            return choice == 0
+            return choice == 0  # True pour "Oui", False pour "Non"
         time.sleep(0.1)
 
 def choose_day():
@@ -82,14 +89,17 @@ def choose_day():
         oled.fill(0)
         oled.text("Choisir jour:", 0, 10)
         oled.text(f"> {days_names[day_index]}", 0, 30)
-        oled.text(f"({len(weekly_alerts[day_index])} alertes)", 0, 50)
+        oled.text(f"({len(weekly_alerts[day_index])} alertes)", 0, 45)
+        oled.text("UP/DOWN + OK", 0, 55)
         oled.show()
 
         if not btn_up.value():
             day_index = (day_index - 1) % 7
             wait_release(btn_up)
         if not btn_down.value():
-            day_index = (day_index + 1) % 7
+            day_index = day_index + 1
+            if day_index > 6:
+                day_index = 0
             wait_release(btn_down)
         if not btn_validate.value():
             wait_release(btn_validate)
@@ -113,7 +123,7 @@ def set_time():
         oled.text(f"{alert[0]:02d}:{alert[1]:02d}:{alert[2]:02d}", 0, 35)
         
         # Instructions
-        oled.text("^/v: changer", 0, 50)
+        oled.text("UP:+  DOWN:-", 0, 50)
         oled.text("OK: suivant", 70, 50)
         oled.show()
 
@@ -242,16 +252,21 @@ def menu_options():
     option_index = 0
     while True:
         oled.fill(0)
-        oled.text("Menu:", 0, 0)
+        oled.text("Menu config:", 0, 0)
         oled.text(f"> {options[option_index][0]}", 0, 20)
-        oled.text("Long: Quitter", 0, 50)
+        oled.text("UP/DOWN: nav", 0, 40)
+        oled.text("Long OK: quit", 0, 50)
         oled.show()
 
         if not btn_up.value():
-            option_index = (option_index - 1) % 3
+            option_index = option_index - 1
+            if option_index < 0:
+                option_index = 2
             wait_release(btn_up)
         if not btn_down.value():
-            option_index = (option_index + 1) % 3
+            option_index = option_index + 1
+            if option_index > 2:
+                option_index = 0
             wait_release(btn_down)
         if not btn_validate.value():
             # Appui court: exécuter l'option
